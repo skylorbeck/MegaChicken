@@ -4,25 +4,20 @@ import net.minecraft.block.BlockState;
 import net.minecraft.entity.*;
 import net.minecraft.entity.ai.goal.*;
 import net.minecraft.entity.attribute.DefaultAttributeContainer;
-import net.minecraft.entity.attribute.EntityAttributeModifier;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.data.DataTracker;
 import net.minecraft.entity.data.TrackedData;
 import net.minecraft.entity.data.TrackedDataHandlerRegistry;
-import net.minecraft.entity.effect.StatusEffectInstance;
-import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.mob.MobEntity;
-import net.minecraft.entity.passive.AbstractHorseEntity;
-import net.minecraft.entity.passive.ChickenEntity;
+import net.minecraft.entity.passive.*;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.HorseArmorItem;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.recipe.Ingredient;
-import net.minecraft.sound.BlockSoundGroup;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.ActionResult;
@@ -30,7 +25,6 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.math.random.Random;
 import net.minecraft.world.LocalDifficulty;
 import net.minecraft.world.ServerWorldAccess;
 import net.minecraft.world.World;
@@ -44,17 +38,22 @@ import software.bernie.geckolib3.core.controller.AnimationController;
 import software.bernie.geckolib3.core.event.predicate.AnimationEvent;
 import software.bernie.geckolib3.core.manager.AnimationData;
 import software.bernie.geckolib3.core.manager.AnimationFactory;
+import website.skylorbeck.minecraft.megachicken.Megachicken;
 
-import java.util.Arrays;
-import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-public class MegaChickenEntity extends ChickenEntity implements IAnimatable {
-    private static final Ingredient BREEDING_INGREDIENT = Ingredient.ofItems(new Item[]{Items.WHEAT_SEEDS, Items.MELON_SEEDS, Items.BEETROOT_SEEDS, Items.PUMPKIN_SEEDS, Items.APPLE, Items.CARROT, Items.BEETROOT, Items.POTATO, Items.GOLDEN_CARROT, Items.GOLDEN_APPLE, Items.ENCHANTED_GOLDEN_APPLE});
+public class MegaChickenEntity extends AnimalEntity implements IAnimatable,ItemSteerable {
+    private static final Ingredient BREEDING_INGREDIENT = Ingredient.ofItems(new Item[]{Items.CAKE,Items.WHEAT_SEEDS, Items.MELON_SEEDS, Items.BEETROOT_SEEDS, Items.PUMPKIN_SEEDS, Items.APPLE, Items.CARROT, Items.BEETROOT, Items.POTATO, Items.GOLDEN_CARROT, Items.GOLDEN_APPLE, Items.ENCHANTED_GOLDEN_APPLE});
     private final AnimationFactory factory = new AnimationFactory(this);
     private static final TrackedData<Integer> VARIANT = DataTracker.registerData(MegaChickenEntity.class, TrackedDataHandlerRegistry.INTEGER);
+    private final SaddledComponent saddledComponent;
+    private static final TrackedData<Boolean> SADDLED = DataTracker.registerData(MegaChickenEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
+    private static final TrackedData<Integer> BOOST_TIME = DataTracker.registerData(MegaChickenEntity.class, TrackedDataHandlerRegistry.INTEGER);
 
-    public MegaChickenEntity(EntityType<? extends ChickenEntity> entityType, World world) {
+
+    public MegaChickenEntity(EntityType<? extends AnimalEntity> entityType, World world) {
         super(entityType, world);
+        saddledComponent = new SaddledComponent(getDataTracker(),BOOST_TIME,SADDLED);
     }
 
     public static DefaultAttributeContainer.Builder createMegaChickenAttributes() {
@@ -62,8 +61,17 @@ public class MegaChickenEntity extends ChickenEntity implements IAnimatable {
     }
 
     @Override
+    public void onTrackedDataSet(TrackedData<?> data) {
+        if (BOOST_TIME.equals(data) && this.world.isClient) {
+            this.saddledComponent.boost();
+        }
+        super.onTrackedDataSet(data);
+    }
+    @Override
     protected void initDataTracker() {
         super.initDataTracker();
+        this.dataTracker.startTracking(SADDLED, false);
+        this.dataTracker.startTracking(BOOST_TIME, 0);
         this.dataTracker.startTracking(VARIANT, 0);
     }
 
@@ -71,12 +79,14 @@ public class MegaChickenEntity extends ChickenEntity implements IAnimatable {
     public void writeCustomDataToNbt(NbtCompound nbt) {
         super.writeCustomDataToNbt(nbt);
         nbt.putInt("Variant", this.getVariant());
+        saddledComponent.writeNbt(nbt);
     }
 
     @Override
     public void readCustomDataFromNbt(NbtCompound nbt) {
         super.readCustomDataFromNbt(nbt);
         this.setVariant(nbt.getInt("Variant"));
+        saddledComponent.readNbt(nbt);
     }
 
     public void setVariant(int variant) {
@@ -100,7 +110,17 @@ public class MegaChickenEntity extends ChickenEntity implements IAnimatable {
         if (actionResult.isAccepted()) {
             return actionResult;
         }
+        if (!this.world.isClient) {
+            player.setYaw(this.getYaw());
+            player.setPitch(this.getPitch());
+            player.startRiding(this);
+        }
         return ActionResult.success(this.world.isClient);
+    }
+
+    @Override
+    public boolean isBreedingItem(ItemStack stack) {
+        return BREEDING_INGREDIENT.test(stack);
     }
 
     public ActionResult interactBird(PlayerEntity player, ItemStack stack) {
@@ -121,14 +141,31 @@ public class MegaChickenEntity extends ChickenEntity implements IAnimatable {
         this.goalSelector.add(6, new WanderAroundFarGoal(this, 0.7));
         this.goalSelector.add(7, new LookAtEntityGoal(this, PlayerEntity.class, 6.0f));
         this.goalSelector.add(8, new LookAroundGoal(this));
-        this.initCustomGoals();
-    }
-
-    protected void initCustomGoals() {
         this.goalSelector.add(0, new SwimGoal(this));
-        this.goalSelector.add(3, new TemptGoal(this, 1.25, Ingredient.ofItems(Items.GOLDEN_CARROT, Items.GOLDEN_APPLE, Items.ENCHANTED_GOLDEN_APPLE), false));
+        this.goalSelector.add(5, new TemptGoal(this, 1, BREEDING_INGREDIENT, false));
+        this.goalSelector.add(4, new TemptGoal(this, 1, Ingredient.ofItems(Megachicken.CAKE_ON_A_STICK), false));
+        this.goalSelector.add(4, new TemptGoal(this, 1, Ingredient.ofItems(Items.CARROT_ON_A_STICK), false));
+
     }
 
+    private boolean canBeControlledByRider(Entity entity) {
+        AtomicBoolean bl = new AtomicBoolean(false);
+        if (entity instanceof PlayerEntity playerEntity) {
+            playerEntity.getItemsHand().forEach(itemStack ->{
+                if (itemStack.isOf(Megachicken.CAKE_ON_A_STICK) || itemStack.isOf(Items.CARROT_ON_A_STICK)) {
+                    bl.set(true);
+                }
+            });
+        }
+        return bl.get();
+    }
+
+    @Override
+    @Nullable
+    public Entity getPrimaryPassenger() {
+        Entity entity = this.getFirstPassenger();
+        return this.canBeControlledByRider(entity) ? entity : null;
+    }
     @Override
     @Nullable
     public EntityData initialize(ServerWorldAccess world, LocalDifficulty difficulty, SpawnReason spawnReason, @Nullable EntityData entityData, @Nullable NbtCompound entityNbt) {
@@ -137,6 +174,16 @@ public class MegaChickenEntity extends ChickenEntity implements IAnimatable {
         this.setVariant(biome.isCold(blockPos) ? 5 : biome.isHot(blockPos) ? 6 : this.random.nextInt(5));
         return super.initialize(world, difficulty, spawnReason, entityData, entityNbt);
     }
+    @Override
+    public void travel(Vec3d movementInput) {
+        this.travel(this, this.saddledComponent, movementInput);
+    }
+
+    @Nullable
+    @Override
+    public PassiveEntity createChild(ServerWorld world, PassiveEntity entity) {
+        return null;
+    }
 
     @Override
     public Vec3d getLeashOffset() {
@@ -144,7 +191,7 @@ public class MegaChickenEntity extends ChickenEntity implements IAnimatable {
     }
 
     public double getMountedHeightOffset() {
-        return this.getDimensions(this.getPose()).height * 0.4;
+        return this.getDimensions(this.getPose()).height*0.9 ;
     }
 
     @Override
@@ -155,7 +202,7 @@ public class MegaChickenEntity extends ChickenEntity implements IAnimatable {
         }
         float mobEntity = MathHelper.sin(this.bodyYaw * ((float) Math.PI / 180));
         float f = MathHelper.cos(this.bodyYaw * ((float) Math.PI / 180));
-        float g = 0.5f;
+        float g = 0.25f;
         passenger.setPosition(this.getX() + (double) (g * mobEntity), this.getY() + this.getMountedHeightOffset() + passenger.getHeightOffset(), this.getZ() - (double) (g * f));
         if (passenger instanceof LivingEntity) {
             ((LivingEntity) passenger).bodyYaw = this.bodyYaw;
@@ -165,7 +212,7 @@ public class MegaChickenEntity extends ChickenEntity implements IAnimatable {
     @Override
     public boolean handleFallDamage(float fallDistance, float damageMultiplier, DamageSource damageSource) {
         if (fallDistance > 1.0f) {
-            this.playSound(SoundEvents.ENTITY_RAVAGER_STEP, 0.4f, 1.0f);
+            this.playSound(SoundEvents.ENTITY_HORSE_STEP, 1f, -1.0f);
         }
         return false;
     }
@@ -182,6 +229,7 @@ public class MegaChickenEntity extends ChickenEntity implements IAnimatable {
         }
         if (this.getHealth() < this.getMaxHealth() && health > 0.0f) {
             this.heal(health);
+            this.playSound(SoundEvents.ENTITY_CHICKEN_AMBIENT,0.5f,0.2f);
             bl = true;
         }
         if (bl) {
@@ -192,11 +240,11 @@ public class MegaChickenEntity extends ChickenEntity implements IAnimatable {
 
     @Override
     protected void playStepSound(BlockPos pos, BlockState state) {
-        this.playSound(SoundEvents.ENTITY_RAVAGER_STEP, 0.4f, 1.0f);
+        this.playSound(SoundEvents.ENTITY_HORSE_STEP, 0.6f, -1.0f);
     }
 
     public float getSoundPitch() {
-        return (this.random.nextFloat() - this.random.nextFloat()) * 0.2f - 1.0f;
+        return (this.random.nextFloat() - this.random.nextFloat()) * 0.2f;
     }
 
 
@@ -231,4 +279,18 @@ public class MegaChickenEntity extends ChickenEntity implements IAnimatable {
         return this.factory;
     }
 
+    @Override
+    public boolean consumeOnAStickItem() {
+        return this.saddledComponent.boost(this.getRandom());
+    }
+
+    @Override
+    public void setMovementInput(Vec3d movementInput) {
+        super.travel(movementInput);
+    }
+
+    @Override
+    public float getSaddledSpeed() {
+        return (float)this.getAttributeValue(EntityAttributes.GENERIC_MOVEMENT_SPEED);
+    }
 }
