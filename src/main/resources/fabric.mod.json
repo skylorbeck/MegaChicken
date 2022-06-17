@@ -5,10 +5,17 @@
   "name": "Megachicken",
   "description": "Adds Mega Sized Chickens",
   "authors": [
-    "SkylorBeck"
+    "Skylor Beck",
+    "Patrons:",
+    "Striker99974",
+    "Dappersaur",
+    "Kynan"
   ],
   "contact": {
-    "website": "skylorbeck.website"
+    "homepage": "https://www.skylorbeck.website",
+    "source": "https://github.com/Skylortrexler/MegaChicken",
+    "repo": "https://github.com/Skylortrexler/MegaChicken",
+    "issues": "https://github.com/Skylortrexler/MegaChicken/issues"
   },
   "license": "LGPL-3.0",
   "icon": "assets/megachicken/icon.png",
@@ -27,6 +34,8 @@
   "depends": {
     "fabricloader": ">=0.14.8",
     "fabric": "*",
-    "minecraft": "1.19"
+    "minecraft": "1.19",
+    "geckolib3": ">=3.1.0",
+    "skylorlib": ">=1.5.0"
   }
 }
