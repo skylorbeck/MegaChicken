@@ -600,47 +600,47 @@
 							"easing": "linear"
 						},
 						"1.28": {
-							"vector": [0, 0, 60],
+							"vector": [0, 0, 20],
 							"easing": "linear"
 						},
 						"1.36": {
-							"vector": [0, 0, 20],
+							"vector": [0, 0, 60],
 							"easing": "linear"
 						},
 						"1.44": {
-							"vector": [0, 0, 60],
+							"vector": [0, 0, 20],
 							"easing": "linear"
 						},
 						"1.52": {
-							"vector": [0, 0, 20],
+							"vector": [0, 0, 60],
 							"easing": "linear"
 						},
 						"1.6": {
-							"vector": [0, 0, 60],
+							"vector": [0, 0, 20],
 							"easing": "linear"
 						},
 						"1.68": {
-							"vector": [0, 0, 20],
+							"vector": [0, 0, 60],
 							"easing": "linear"
 						},
 						"1.76": {
-							"vector": [0, 0, 60],
+							"vector": [0, 0, 20],
 							"easing": "linear"
 						},
 						"1.84": {
-							"vector": [0, 0, 20],
+							"vector": [0, 0, 60],
 							"easing": "linear"
 						},
 						"1.92": {
-							"vector": [0, 0, 60],
-							"easing": "linear"
-						},
-						"2.0": {
 							"vector": [0, 0, 20],
 							"easing": "linear"
 						},
-						"2.08": {
+						"2.0": {
 							"vector": [0, 0, 60],
+							"easing": "linear"
+						},
+						"2.08": {
+							"vector": [0, 0, 20],
 							"easing": "linear"
 						}
 					}
@@ -1036,12 +1036,12 @@
 							"vector": [0, 0, 0]
 						},
 						"1.04": {
-							"vector": [0, 5, 0],
-							"easing": "easeInSine"
+							"vector": [0, 1, 0],
+							"easing": "easeInOutSine"
 						},
 						"2.08": {
 							"vector": [0, 0, 0],
-							"easing": "easeInSine"
+							"easing": "easeInOutSine"
 						}
 					}
 				}
@@ -1050,5 +1050,6 @@
 		"idle": {
 			"loop": true
 		}
-	}
+	},
+	"geckolib_format_version": 2
 }

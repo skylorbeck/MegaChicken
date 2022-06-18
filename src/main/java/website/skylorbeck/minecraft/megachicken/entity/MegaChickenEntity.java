@@ -204,7 +204,7 @@ public class MegaChickenEntity extends AnimalEntity implements IAnimatable,ItemS
     @Override
     public void travel(Vec3d movementInput) {
         this.travel(this, this.saddledComponent, movementInput);
-        if (this.hasPassengers() && riderIsHoldingCakeStick(this.getPrimaryPassenger())) {
+        if (this.hasPassengers() && riderIsHoldingCakeStick(this.getPrimaryPassenger()) && this.saddledComponent.boosted) {
             if (!onGround) {
                 this.setNoGravity(true);
             }
@@ -212,10 +212,10 @@ public class MegaChickenEntity extends AnimalEntity implements IAnimatable,ItemS
             float pitch = -getPitch();
             if (Math.abs(pitch) > 15f) {
                 if (onGround && pitch > 0){
-                    this.setVelocity(vec3d.getX() * 0.05, 0.5, vec3d.getZ() * 0.05);
+                    this.setVelocity(vec3d.getX() * getMovementSpeed(), 0.5, vec3d.getZ() * getMovementSpeed());
                     this.velocityModified = true;
                 } else if (!onGround){
-                    this.setVelocity(vec3d.getX() * 0.05, pitch + 45 > 45 ? 0.5 : -0.25, vec3d.getZ() * 0.05);
+                    this.setVelocity(vec3d.getX() * getMovementSpeed(), pitch + 45 > 45 ? 0.5 : -0.25, vec3d.getZ() * getMovementSpeed());
                     this.velocityModified = true;
                 }
             }
@@ -320,13 +320,18 @@ public class MegaChickenEntity extends AnimalEntity implements IAnimatable,ItemS
     private <E extends IAnimatable> PlayState locomotion_predicate(AnimationEvent<E> event) {
         MegaChickenEntity megaChicken = (MegaChickenEntity) event.getAnimatable();
         Vec3d vec3d = megaChicken.getVelocity().normalize();
-        if (vec3d.x > 0.05f || vec3d.x < -0.05f || vec3d.z > 0.05f || vec3d.z < -0.05f)
-            if (megaChicken.isOnGround())
+        if (Math.abs(vec3d.x) > 0.05f || Math.abs(vec3d.z) > 0.05f || megaChicken.saddledComponent.boosted) {
+            if (megaChicken.isOnGround()) {
                 event.getController().setAnimation(new AnimationBuilder().addAnimation("walk", true));
-            else
+                event.getController().setAnimationSpeed(megaChicken.getMovementSpeed() * 10);
+            } else {
+                event.getController().setAnimationSpeed(1);
                 event.getController().setAnimation(new AnimationBuilder().addAnimation("fly", true));
-        else
+            }
+        } else {
+            event.getController().setAnimationSpeed(1);
             event.getController().setAnimation(new AnimationBuilder().addAnimation("idle", true));
+        }
         return PlayState.CONTINUE;
     }
 
@@ -337,14 +342,12 @@ public class MegaChickenEntity extends AnimalEntity implements IAnimatable,ItemS
 
     @Override
     public boolean consumeOnAStickItem() {
-        return true;
-//        return this.saddledComponent.boost(this.getRandom());
+//        return true;
+        return this.saddledComponent.boost(this.getRandom());
     }
 
     @Override
     public void setMovementInput(Vec3d movementInput) {
         super.travel(movementInput);
     }
-
-
 }
