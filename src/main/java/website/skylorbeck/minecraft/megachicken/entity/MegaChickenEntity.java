@@ -156,10 +156,6 @@ public class MegaChickenEntity extends AnimalEntity implements IAnimatable,ItemS
 
     }
 
-    @Override
-    public boolean isPushable() {
-        return false;
-    }
 
     private boolean canBeControlledByRider(Entity entity) {
         AtomicBoolean bl = new AtomicBoolean(false);
@@ -320,7 +316,7 @@ public class MegaChickenEntity extends AnimalEntity implements IAnimatable,ItemS
     private <E extends IAnimatable> PlayState locomotion_predicate(AnimationEvent<E> event) {
         MegaChickenEntity megaChicken = (MegaChickenEntity) event.getAnimatable();
         Vec3d vec3d = megaChicken.getVelocity().normalize();
-        if (Math.abs(vec3d.x) > 0.05f || Math.abs(vec3d.z) > 0.05f || megaChicken.saddledComponent.boosted) {
+        if (vec3d.x > 0.05f || vec3d.z > 0.05f || vec3d.x < -0.05f || vec3d.z < -0.05f || megaChicken.saddledComponent.boosted) {
             if (megaChicken.isOnGround()) {
                 event.getController().setAnimation(new AnimationBuilder().addAnimation("walk", true));
                 event.getController().setAnimationSpeed(megaChicken.getMovementSpeed() * 10);
