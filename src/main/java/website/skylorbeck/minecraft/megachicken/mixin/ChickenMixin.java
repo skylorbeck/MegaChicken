@@ -14,7 +14,7 @@ public class ChickenMixin implements IMegable {
         MegaChickenEntity megaChicken = Megachicken.MEGA_CHICKEN_ENTITY_ENTITY_TYPE.create(chicken.world);
         assert megaChicken != null;
         megaChicken.setPos(chicken.getX(), chicken.getY()+1, chicken.getZ());
-//        megaChicken.setVariant(chicken.getVariant()); //todo randomize variant
+        megaChicken.setVariant(chicken.getRandom().nextInt(3));
         if (chicken.getCustomName() != null) {
             megaChicken.setCustomName(chicken.getCustomName());
         }

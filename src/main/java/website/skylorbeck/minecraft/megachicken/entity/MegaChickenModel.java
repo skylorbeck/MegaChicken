@@ -27,6 +27,12 @@ public class MegaChickenModel extends AnimatedGeoModel<MegaChickenEntity> {
             default -> {
                 return Megachicken.getId("textures/entity/blackshaded.png");
             }
+            case 1 -> {
+                return Megachicken.getId("textures/entity/brownshaded.png");
+            }
+            case 2 -> {
+                return Megachicken.getId("textures/entity/whiteshaded.png");
+            }
         }
     }
 

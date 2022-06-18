@@ -191,9 +191,7 @@ public class MegaChickenEntity extends AnimalEntity implements IAnimatable,ItemS
     @Override
     @Nullable
     public EntityData initialize(ServerWorldAccess world, LocalDifficulty difficulty, SpawnReason spawnReason, @Nullable EntityData entityData, @Nullable NbtCompound entityNbt) {
-        BlockPos blockPos = this.getBlockPos();
-        Biome biome = world.getBiome(blockPos).value();
-        this.setVariant(biome.isCold(blockPos) ? 5 : biome.isHot(blockPos) ? 6 : this.random.nextInt(5));
+        this.setVariant(this.random.nextInt(3));
         return super.initialize(world, difficulty, spawnReason, entityData, entityNbt);
     }
 
