@@ -33,5 +33,5 @@ public class Megachicken implements ModInitializer {
                     .setDimensions(1.75f, 2.25f)
                     .maxTrackingRange(10)
                     .build(getId("mega_chicken").toString()));
-    public static final Item CAKE_ON_A_STICK = new OnAStickItem<MegaChickenEntity>(new FabricItemSettings().rarity(Rarity.EPIC).group(ItemGroup.TRANSPORTATION).maxCount(1),MEGA_CHICKEN_ENTITY_ENTITY_TYPE,7);
+    public static final Item CAKE_ON_A_STICK = new OnAStickItem<MegaChickenEntity>(new FabricItemSettings().rarity(Rarity.EPIC).group(ItemGroup.TRANSPORTATION).maxCount(1).maxDamage(70),MEGA_CHICKEN_ENTITY_ENTITY_TYPE,7);
 }

@@ -4,7 +4,8 @@
   "package": "website.skylorbeck.minecraft.megachicken.mixin",
   "compatibilityLevel": "JAVA_17",
   "mixins": [
-    "ChickenMixin"
+    "ChickenMixin",
+    "TemptGoalMixin"
   ],
   "client": [
   ],

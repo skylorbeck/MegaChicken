@@ -2,7 +2,11 @@ package website.skylorbeck.minecraft.megachicken.entity;
 
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.*;
+import net.minecraft.entity.ai.control.JumpControl;
 import net.minecraft.entity.ai.goal.*;
+import net.minecraft.entity.ai.pathing.BirdNavigation;
+import net.minecraft.entity.ai.pathing.EntityNavigation;
+import net.minecraft.entity.ai.pathing.PathNodeType;
 import net.minecraft.entity.attribute.DefaultAttributeContainer;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.damage.DamageSource;
@@ -39,11 +43,14 @@ import software.bernie.geckolib3.core.event.predicate.AnimationEvent;
 import software.bernie.geckolib3.core.manager.AnimationData;
 import software.bernie.geckolib3.core.manager.AnimationFactory;
 import website.skylorbeck.minecraft.megachicken.Megachicken;
+import website.skylorbeck.minecraft.megachicken.mixin.TemptGoalMixin;
 
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class MegaChickenEntity extends AnimalEntity implements IAnimatable,ItemSteerable {
-    private static final Ingredient BREEDING_INGREDIENT = Ingredient.ofItems(new Item[]{Items.CAKE,Items.WHEAT_SEEDS, Items.MELON_SEEDS, Items.BEETROOT_SEEDS, Items.PUMPKIN_SEEDS, Items.APPLE, Items.CARROT, Items.BEETROOT, Items.POTATO, Items.GOLDEN_CARROT, Items.GOLDEN_APPLE, Items.ENCHANTED_GOLDEN_APPLE});
+    private static final Ingredient BREEDING_INGREDIENT = Ingredient.ofItems(new Item[]{Items.CAKE, Items.WHEAT_SEEDS, Items.MELON_SEEDS, Items.BEETROOT_SEEDS, Items.PUMPKIN_SEEDS, Items.APPLE, Items.CARROT, Items.BEETROOT, Items.POTATO, Items.GOLDEN_CARROT, Items.GOLDEN_APPLE, Items.ENCHANTED_GOLDEN_APPLE});
     private final AnimationFactory factory = new AnimationFactory(this);
     private static final TrackedData<Integer> VARIANT = DataTracker.registerData(MegaChickenEntity.class, TrackedDataHandlerRegistry.INTEGER);
     private final SaddledComponent saddledComponent;
@@ -53,7 +60,7 @@ public class MegaChickenEntity extends AnimalEntity implements IAnimatable,ItemS
 
     public MegaChickenEntity(EntityType<? extends AnimalEntity> entityType, World world) {
         super(entityType, world);
-        saddledComponent = new SaddledComponent(getDataTracker(),BOOST_TIME,SADDLED);
+        saddledComponent = new SaddledComponent(getDataTracker(), BOOST_TIME, SADDLED);
     }
 
     public static DefaultAttributeContainer.Builder createMegaChickenAttributes() {
@@ -67,6 +74,7 @@ public class MegaChickenEntity extends AnimalEntity implements IAnimatable,ItemS
         }
         super.onTrackedDataSet(data);
     }
+
     @Override
     protected void initDataTracker() {
         super.initDataTracker();
@@ -136,23 +144,40 @@ public class MegaChickenEntity extends AnimalEntity implements IAnimatable,ItemS
 
     @Override
     protected void initGoals() {
+        this.goalSelector.add(0, new SwimGoal(this));
         this.goalSelector.add(1, new EscapeDangerGoal(this, 1.2));
-        this.goalSelector.add(4, new FollowParentGoal(this, 1.0));
+        this.goalSelector.add(3, new TemptGoal(this, 1, Ingredient.ofItems(Megachicken.CAKE_ON_A_STICK), false));
+        this.goalSelector.add(4, new TemptGoal(this, 1, Ingredient.ofItems(Items.CARROT_ON_A_STICK), false));
+        this.goalSelector.add(5, new TemptGoal(this, 1, BREEDING_INGREDIENT, false));
+        this.goalSelector.add(6, new WanderAroundGoal(this, 0.7));
         this.goalSelector.add(6, new WanderAroundFarGoal(this, 0.7));
         this.goalSelector.add(7, new LookAtEntityGoal(this, PlayerEntity.class, 6.0f));
         this.goalSelector.add(8, new LookAroundGoal(this));
-        this.goalSelector.add(0, new SwimGoal(this));
-        this.goalSelector.add(5, new TemptGoal(this, 1, BREEDING_INGREDIENT, false));
-        this.goalSelector.add(4, new TemptGoal(this, 1, Ingredient.ofItems(Megachicken.CAKE_ON_A_STICK), false));
-        this.goalSelector.add(4, new TemptGoal(this, 1, Ingredient.ofItems(Items.CARROT_ON_A_STICK), false));
 
+    }
+
+    @Override
+    public boolean isPushable() {
+        return false;
     }
 
     private boolean canBeControlledByRider(Entity entity) {
         AtomicBoolean bl = new AtomicBoolean(false);
         if (entity instanceof PlayerEntity playerEntity) {
-            playerEntity.getItemsHand().forEach(itemStack ->{
+            playerEntity.getItemsHand().forEach(itemStack -> {
                 if (itemStack.isOf(Megachicken.CAKE_ON_A_STICK) || itemStack.isOf(Items.CARROT_ON_A_STICK)) {
+                    bl.set(true);
+                }
+            });
+        }
+        return bl.get();
+    }
+
+    private boolean riderIsHoldingCakeStick(Entity entity) {
+        AtomicBoolean bl = new AtomicBoolean(false);
+        if (entity instanceof PlayerEntity playerEntity) {
+            playerEntity.getItemsHand().forEach(itemStack -> {
+                if (itemStack.isOf(Megachicken.CAKE_ON_A_STICK)) {
                     bl.set(true);
                 }
             });
@@ -166,6 +191,7 @@ public class MegaChickenEntity extends AnimalEntity implements IAnimatable,ItemS
         Entity entity = this.getFirstPassenger();
         return this.canBeControlledByRider(entity) ? entity : null;
     }
+
     @Override
     @Nullable
     public EntityData initialize(ServerWorldAccess world, LocalDifficulty difficulty, SpawnReason spawnReason, @Nullable EntityData entityData, @Nullable NbtCompound entityNbt) {
@@ -174,11 +200,42 @@ public class MegaChickenEntity extends AnimalEntity implements IAnimatable,ItemS
         this.setVariant(biome.isCold(blockPos) ? 5 : biome.isHot(blockPos) ? 6 : this.random.nextInt(5));
         return super.initialize(world, difficulty, spawnReason, entityData, entityNbt);
     }
+
     @Override
     public void travel(Vec3d movementInput) {
         this.travel(this, this.saddledComponent, movementInput);
+        if (this.hasPassengers() && riderIsHoldingCakeStick(this.getPrimaryPassenger())) {
+            if (!onGround) {
+                this.setNoGravity(true);
+            }
+            Vec3d vec3d = this.getRotationVector();
+            float pitch = -getPitch();
+            if (Math.abs(pitch) > 15f) {
+                if (onGround && pitch > 0){
+                    this.setVelocity(vec3d.getX() * 0.05, 0.5, vec3d.getZ() * 0.05);
+                    this.velocityModified = true;
+                } else if (!onGround){
+                    this.setVelocity(vec3d.getX() * 0.05, pitch + 45 > 45 ? 0.5 : -0.25, vec3d.getZ() * 0.05);
+                    this.velocityModified = true;
+                }
+            }
+        } else {
+            this.setNoGravity(false);
+        }
     }
 
+    @Override
+    public void onLanding() {
+        this.setNoGravity(false);
+        super.onLanding();
+    }
+
+    @Override
+    public float getSaddledSpeed() {
+        float f = (float) this.getAttributeValue(EntityAttributes.GENERIC_MOVEMENT_SPEED);
+        return f * ((this.hasNoGravity() && !this.isOnGround()) ? 2.5f : 1f);
+//        return f;
+    }
     @Nullable
     @Override
     public PassiveEntity createChild(ServerWorld world, PassiveEntity entity) {
@@ -187,11 +244,11 @@ public class MegaChickenEntity extends AnimalEntity implements IAnimatable,ItemS
 
     @Override
     public Vec3d getLeashOffset() {
-        return new Vec3d(0.0, 0.5f * this.getStandingEyeHeight(), this.getWidth() * 0.2f);
+        return new Vec3d(0.0, 1.25*this.getStandingEyeHeight(), this.getWidth() * 0.35f);
     }
 
     public double getMountedHeightOffset() {
-        return this.getDimensions(this.getPose()).height*0.9 ;
+        return this.getDimensions(this.getPose()).height * 0.9;
     }
 
     @Override
@@ -229,7 +286,7 @@ public class MegaChickenEntity extends AnimalEntity implements IAnimatable,ItemS
         }
         if (this.getHealth() < this.getMaxHealth() && health > 0.0f) {
             this.heal(health);
-            this.playSound(SoundEvents.ENTITY_CHICKEN_AMBIENT,0.5f,0.2f);
+            this.playSound(SoundEvents.ENTITY_CHICKEN_AMBIENT, 0.5f, 0.2f);
             bl = true;
         }
         if (bl) {
@@ -255,7 +312,6 @@ public class MegaChickenEntity extends AnimalEntity implements IAnimatable,ItemS
     }
 
 
-    //gecko
     @Override
     public void registerControllers(AnimationData animationData) {
         animationData.addAnimationController(new AnimationController<>(this, "master_controller", 5, this::locomotion_predicate));
@@ -263,14 +319,14 @@ public class MegaChickenEntity extends AnimalEntity implements IAnimatable,ItemS
 
     private <E extends IAnimatable> PlayState locomotion_predicate(AnimationEvent<E> event) {
         MegaChickenEntity megaChicken = (MegaChickenEntity) event.getAnimatable();
-
-//        if (event.isMoving()) {
         Vec3d vec3d = megaChicken.getVelocity().normalize();
         if (vec3d.x > 0.05f || vec3d.x < -0.05f || vec3d.z > 0.05f || vec3d.z < -0.05f)
-            event.getController().setAnimation(new AnimationBuilder().addAnimation("walk", true));
+            if (megaChicken.isOnGround())
+                event.getController().setAnimation(new AnimationBuilder().addAnimation("walk", true));
+            else
+                event.getController().setAnimation(new AnimationBuilder().addAnimation("fly", true));
         else
             event.getController().setAnimation(new AnimationBuilder().addAnimation("idle", true));
-        //todo add animation for flying
         return PlayState.CONTINUE;
     }
 
@@ -281,7 +337,8 @@ public class MegaChickenEntity extends AnimalEntity implements IAnimatable,ItemS
 
     @Override
     public boolean consumeOnAStickItem() {
-        return this.saddledComponent.boost(this.getRandom());
+        return true;
+//        return this.saddledComponent.boost(this.getRandom());
     }
 
     @Override
@@ -289,8 +346,5 @@ public class MegaChickenEntity extends AnimalEntity implements IAnimatable,ItemS
         super.travel(movementInput);
     }
 
-    @Override
-    public float getSaddledSpeed() {
-        return (float)this.getAttributeValue(EntityAttributes.GENERIC_MOVEMENT_SPEED);
-    }
+
 }
