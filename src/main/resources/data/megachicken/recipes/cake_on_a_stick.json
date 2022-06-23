@@ -1,16 +1,12 @@
 {
-  "type": "minecraft:crafting_shaped",
-  "key": {
-    "#": {
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    {
       "item": "minecraft:fishing_rod"
     },
-    "X": {
+    {
       "item": "minecraft:cake"
     }
-  },
-  "pattern": [
-    "# ",
-    " X"
   ],
   "result": {
     "item": "megachicken:cake_on_a_stick_item"
