@@ -16,13 +16,18 @@ public class MegaChickenModel extends AnimatedGeoModel<MegaChickenEntity> {
 
     @Override
     public Identifier getTextureResource(MegaChickenEntity object) {
-        /*if (object.getCustomName() != null) {
+        if (object.getCustomName() != null) {
             String name = object.getName().getString();
-            if (name.equalsIgnoreCase("mordecai")){
-                return Declarar.getMegaChickenId("textures/entity/mordecai.png");
+            if (name.equalsIgnoreCase("striker")){
+                return Megachicken.getId("textures/entity/tank.png");
             } else
-
-        }*/
+            if (name.equalsIgnoreCase("dappersaur")){
+                return Megachicken.getId("textures/entity/warden.png");
+            } else
+            if (name.equalsIgnoreCase("kynan")){
+                return Megachicken.getId("textures/entity/fish.png");
+            }
+        }
         switch (object.getVariant()) {
             default -> {
                 return Megachicken.getId("textures/entity/blackshaded.png");
